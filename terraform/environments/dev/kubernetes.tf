@@ -9,7 +9,7 @@
 resource "time_sleep" "wait_for_nodes" {
   depends_on = [module.eks]
 
-  create_duration = "60s"
+  create_duration = "120s"
 }
 
 # ================================================================
@@ -77,6 +77,7 @@ resource "helm_release" "aws_lb_controller" {
   chart      = "aws-load-balancer-controller"
   namespace  = "kube-system"
   version    = "1.7.2"
+  timeout    = 600
 
   set {
     name  = "clusterName"
@@ -139,6 +140,7 @@ resource "helm_release" "efs_csi_driver" {
   chart      = "aws-efs-csi-driver"
   namespace  = "kube-system"
   version    = "3.0.5"
+  timeout    = 600
 
   set {
     name  = "controller.serviceAccount.create"
@@ -165,6 +167,7 @@ resource "helm_release" "external_dns" {
   chart      = "external-dns"
   namespace  = "kube-system"
   version    = "1.14.3"
+  timeout    = 600
 
   set {
     name  = "provider"
