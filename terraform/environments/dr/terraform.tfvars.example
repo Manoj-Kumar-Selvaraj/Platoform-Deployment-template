@@ -1,0 +1,48 @@
+# DR workspace tfvars — override these in TFC workspace variables
+# Primary: us-east-1  |  DR: us-west-2
+
+aws_region   = "us-west-2"
+project_name = "platform-mvp"
+environment  = "dev"
+
+# Different CIDR to avoid future VPC peering conflicts
+vpc_cidr             = "10.20.0.0/16"
+public_subnet_cidrs  = ["10.20.1.0/24", "10.20.2.0/24"]
+private_subnet_cidrs = ["10.20.11.0/24", "10.20.12.0/24"]
+availability_zones   = ["us-west-2a", "us-west-2b"]
+
+cluster_name       = "platform-mvp-dr"
+kubernetes_version = "1.29"
+
+# Same domain — ExternalDNS automatically updates Route53 records
+domain_name = "manoj-tech-solutions.site"
+
+# DR-specific settings
+enable_dr     = false   # No DR-of-DR
+enable_velero = true    # Velero reads from the CRR-replicated S3 bucket in us-west-2
+
+# rds_endpoint_override: CRITICAL — set this during DR recovery
+# After restoring RDS from replicated backups in us-west-2:
+#   aws rds restore-db-instance-to-point-in-time \
+#     --region us-west-2 \
+#     --source-db-instance-automated-backups-arn <ARN> \
+#     --target-db-instance-identifier platform-mvp-sonarqube-restored
+#
+# Then set in TFC workspace variables:
+# rds_endpoint_override = "platform-mvp-sonarqube-restored.xxxx.us-west-2.rds.amazonaws.com"
+#
+# rds_endpoint_override = ""   # leave empty on fresh DR deploy before RDS restore
+
+# Node group sizing (same as dev)
+platform_control_desired = 2
+platform_control_min     = 2
+platform_control_max     = 3
+
+platform_exec_desired = 1
+platform_exec_min     = 1
+platform_exec_max     = 5
+
+# Sensitive variables — set these in TFC workspace as sensitive variables:
+# rds_password          = "<same as primary>"
+# jenkins_admin_password = "<same as primary>"
+# sonarqube_token        = ""  # regenerate after SonarQube comes up

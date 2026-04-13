@@ -25,6 +25,16 @@ resource "aws_backup_plan" "efs_daily" {
       delete_after = var.retention_days
     }
 
+    dynamic "copy_action" {
+      for_each = var.dr_vault_arn != "" ? [1] : []
+      content {
+        destination_vault_arn = var.dr_vault_arn
+        lifecycle {
+          delete_after = var.dr_retention_days
+        }
+      }
+    }
+
     recovery_point_tags = var.tags
   }
 
@@ -64,10 +74,16 @@ resource "aws_iam_role_policy_attachment" "restore" {
 # -----------------------------------------------------
 # Backup Selection (EFS)
 # -----------------------------------------------------
-resource "aws_backup_selection" "efs" {
-  name         = "${var.project_name}-efs-selection"
+# Moved from aws_backup_selection.efs to .platform to include RDS
+moved {
+  from = aws_backup_selection.efs
+  to   = aws_backup_selection.platform
+}
+
+resource "aws_backup_selection" "platform" {
+  name         = "${var.project_name}-platform-selection"
   iam_role_arn = aws_iam_role.backup.arn
   plan_id      = aws_backup_plan.efs_daily.id
 
-  resources = var.efs_arns
+  resources = concat(var.efs_arns, var.rds_arns)
 }

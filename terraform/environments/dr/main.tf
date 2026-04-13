@@ -11,7 +11,6 @@ data "aws_caller_identity" "current" {}
 # Phase 1: Foundations
 # ==============================================
 
-# --- Network ---
 module "network" {
   source = "../../modules/network"
 
@@ -25,7 +24,6 @@ module "network" {
   tags                 = local.common_tags
 }
 
-# --- IAM (base roles, no IRSA yet) ---
 module "iam" {
   source = "../../modules/iam"
 
@@ -35,7 +33,6 @@ module "iam" {
   tags              = local.common_tags
 }
 
-# --- EKS ---
 module "eks" {
   source = "../../modules/eks"
 
@@ -66,7 +63,6 @@ module "eks" {
 # Phase 2: Core Controllers
 # ==============================================
 
-# --- EFS ---
 module "efs" {
   source = "../../modules/efs"
 
@@ -77,7 +73,6 @@ module "efs" {
   tags                 = local.common_tags
 }
 
-# --- RDS PostgreSQL ---
 module "rds_postgres" {
   source = "../../modules/rds_postgres"
 
@@ -95,7 +90,6 @@ module "rds_postgres" {
   tags                    = local.common_tags
 }
 
-# --- Route53 + ACM ---
 module "route53_acm" {
   source = "../../modules/route53_acm"
 
@@ -105,7 +99,6 @@ module "route53_acm" {
   tags             = local.common_tags
 }
 
-# --- ALB Prerequisites ---
 module "alb_prereqs" {
   source = "../../modules/alb-prereqs"
 
@@ -114,18 +107,16 @@ module "alb_prereqs" {
   tags         = local.common_tags
 }
 
-# --- ECR ---
 module "ecr" {
   source = "../../modules/ecr"
 
   project_name          = var.project_name
   repository_names      = var.ecr_repository_names
-  enable_dr_replication = var.enable_dr
+  enable_dr_replication = false  # No DR-of-DR from secondary region
   dr_region             = var.dr_region
   tags                  = local.common_tags
 }
 
-# --- CodeArtifact (feature-flagged) ---
 module "codeartifact" {
   source = "../../modules/codeartifact"
 
@@ -135,18 +126,18 @@ module "codeartifact" {
   tags         = local.common_tags
 }
 
-# --- S3 Backup ---
+# S3 backup bucket — Velero writes here; this bucket is the REPLICA from us-east-1
+# During DR, Velero reads from this bucket to restore namespaces
 module "s3_backup" {
   source = "../../modules/s3_backup"
 
   project_name                       = var.project_name
   environment                        = var.environment
-  enable_replication                 = var.enable_dr
-  replication_destination_bucket_arn = var.enable_dr ? aws_s3_bucket.backup_dr[0].arn : ""
+  enable_replication                 = false  # DR bucket doesn't replicate further
+  replication_destination_bucket_arn = ""
   tags                               = local.common_tags
 }
 
-# --- AWS Backup ---
 module "backup" {
   source = "../../modules/backup"
 
@@ -154,12 +145,11 @@ module "backup" {
   efs_arns          = [module.efs.efs_arn]
   rds_arns          = [module.rds_postgres.db_instance_arn]
   retention_days    = var.backup_retention_days
-  dr_vault_arn      = var.enable_dr ? aws_backup_vault.dr[0].arn : ""
+  dr_vault_arn      = ""   # No DR-of-DR
   dr_retention_days = 14
   tags              = local.common_tags
 }
 
-# --- Ansible Runner ---
 module "ansible_runner" {
   source = "../../modules/ansible_runner"
 
@@ -168,52 +158,4 @@ module "ansible_runner" {
   subnet_id     = module.network.private_subnet_ids[0]
   instance_type = var.ansible_runner_instance_type
   tags          = local.common_tags
-}
-
-# ==============================================
-# Disaster Recovery Resources (us-west-2)
-# All gated on var.enable_dr = true
-# ==============================================
-
-# DR Backup Vault
-resource "aws_backup_vault" "dr" {
-  count    = var.enable_dr ? 1 : 0
-  provider = aws.dr
-  name     = "${var.project_name}-backup-vault-dr"
-  tags     = local.common_tags
-}
-
-# DR S3 Bucket (replication destination for backup bucket)
-resource "aws_s3_bucket" "backup_dr" {
-  count    = var.enable_dr ? 1 : 0
-  provider = aws.dr
-  bucket   = "${var.project_name}-${var.environment}-backup-dr-${data.aws_caller_identity.current.account_id}"
-  tags     = merge(local.common_tags, { Name = "${var.project_name}-backup-dr" })
-}
-
-resource "aws_s3_bucket_versioning" "backup_dr" {
-  count    = var.enable_dr ? 1 : 0
-  provider = aws.dr
-  bucket   = aws_s3_bucket.backup_dr[0].id
-  versioning_configuration { status = "Enabled" }
-}
-
-resource "aws_s3_bucket_public_access_block" "backup_dr" {
-  count    = var.enable_dr ? 1 : 0
-  provider = aws.dr
-  bucket   = aws_s3_bucket.backup_dr[0].id
-
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
-}
-
-# RDS Automated Backup Replication to us-west-2
-# Provides continuous PITR-capable backups in the DR region
-resource "aws_db_instance_automated_backups_replication" "sonarqube_dr" {
-  count                  = var.enable_dr ? 1 : 0
-  provider               = aws.dr
-  source_db_instance_arn = module.rds_postgres.db_instance_arn
-  retention_period       = 7
 }

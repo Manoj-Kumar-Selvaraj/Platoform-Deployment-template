@@ -46,6 +46,161 @@ resource "kubernetes_namespace" "apps" {
 }
 
 # ================================================================
+# VELERO — Kubernetes-level backup to S3 (cross-region replicated)
+# Gated on var.enable_velero — enable after S3 CRR is set up
+# ================================================================
+
+resource "kubernetes_namespace" "velero" {
+  count = var.enable_velero ? 1 : 0
+
+  metadata {
+    name = "velero"
+    labels = {
+      "app.kubernetes.io/part-of" = var.project_name
+    }
+  }
+  depends_on = [time_sleep.wait_for_nodes]
+}
+
+resource "helm_release" "velero" {
+  count      = var.enable_velero ? 1 : 0
+  name       = "velero"
+  repository = "https://vmware-tanzu.github.io/helm-charts"
+  chart      = "velero"
+  namespace  = kubernetes_namespace.velero[0].metadata[0].name
+  version    = "7.0.0"
+  timeout    = 600
+
+  # AWS plugin init container
+  set {
+    name  = "initContainers[0].name"
+    value = "velero-plugin-for-aws"
+  }
+  set {
+    name  = "initContainers[0].image"
+    value = "velero/velero-plugin-for-aws:v1.10.0"
+  }
+  set {
+    name  = "initContainers[0].volumeMounts[0].mountPath"
+    value = "/target"
+  }
+  set {
+    name  = "initContainers[0].volumeMounts[0].name"
+    value = "plugins"
+  }
+
+  # EFS uses filesystem backup (no CSI snapshots supported)
+  set {
+    name  = "configuration.defaultVolumesToFsBackup"
+    value = "true"
+    type  = "string"
+  }
+  set {
+    name  = "configuration.uploaderType"
+    value = "kopia"
+  }
+  set {
+    name  = "deployNodeAgent"
+    value = "true"
+    type  = "string"
+  }
+
+  # Backup storage location → primary S3 bucket (replicated to DR via CRR)
+  set {
+    name  = "configuration.backupStorageLocation[0].name"
+    value = "default"
+  }
+  set {
+    name  = "configuration.backupStorageLocation[0].provider"
+    value = "aws"
+  }
+  set {
+    name  = "configuration.backupStorageLocation[0].bucket"
+    value = module.s3_backup.bucket_name
+  }
+  set {
+    name  = "configuration.backupStorageLocation[0].prefix"
+    value = "velero"
+  }
+  set {
+    name  = "configuration.backupStorageLocation[0].config.region"
+    value = var.aws_region
+  }
+
+  # Volume snapshot location
+  set {
+    name  = "configuration.volumeSnapshotLocation[0].name"
+    value = "default"
+  }
+  set {
+    name  = "configuration.volumeSnapshotLocation[0].provider"
+    value = "aws"
+  }
+  set {
+    name  = "configuration.volumeSnapshotLocation[0].config.region"
+    value = var.aws_region
+  }
+
+  # IRSA
+  set {
+    name  = "serviceAccount.server.annotations.eks\\.amazonaws\\.com/role-arn"
+    value = module.iam.velero_role_arn
+  }
+
+  # Daily backup schedule — runs at 02:00 UTC (1h before AWS Backup)
+  set {
+    name  = "schedules.daily-platform-backup.disabled"
+    value = "false"
+    type  = "string"
+  }
+  set {
+    name  = "schedules.daily-platform-backup.schedule"
+    value = "0 2 * * *"
+  }
+  set {
+    name  = "schedules.daily-platform-backup.template.ttl"
+    value = "720h" # 30 days
+  }
+  set {
+    name  = "schedules.daily-platform-backup.template.includedNamespaces[0]"
+    value = "jenkins"
+  }
+  set {
+    name  = "schedules.daily-platform-backup.template.includedNamespaces[1]"
+    value = "sonarqube"
+  }
+  set {
+    name  = "schedules.daily-platform-backup.template.includedNamespaces[2]"
+    value = "artifactory"
+  }
+
+  # Scheduling
+  set {
+    name  = "nodeSelector.role"
+    value = "platform-control"
+  }
+  set {
+    name  = "tolerations[0].key"
+    value = "platform-control"
+  }
+  set {
+    name  = "tolerations[0].value"
+    value = "true"
+    type  = "string"
+  }
+  set {
+    name  = "tolerations[0].effect"
+    value = "NoSchedule"
+  }
+
+  depends_on = [
+    time_sleep.wait_for_nodes,
+    helm_release.efs_csi_driver,
+    module.s3_backup,
+  ]
+}
+
+# ================================================================
 # 2. STORAGE CLASS — EFS
 # ================================================================
 resource "kubernetes_storage_class" "efs" {
@@ -294,7 +449,7 @@ resource "helm_release" "sonarqube" {
 
   set {
     name  = "jdbcOverwrite.jdbcUrl"
-    value = "jdbc:postgresql://${module.rds_postgres.address}:5432/${var.rds_db_name}"
+    value = var.rds_endpoint_override != "" ? "jdbc:postgresql://${var.rds_endpoint_override}:5432/${var.rds_db_name}" : "jdbc:postgresql://${module.rds_postgres.address}:5432/${var.rds_db_name}"
   }
 
   set {

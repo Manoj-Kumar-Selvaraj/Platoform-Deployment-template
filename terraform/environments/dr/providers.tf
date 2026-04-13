@@ -6,11 +6,13 @@ provider "aws" {
       Project     = var.project_name
       Environment = var.environment
       ManagedBy   = "terraform"
+      Role        = "dr"
     }
   }
 }
 
-# DR provider — secondary region (dark until disaster declared)
+# Placeholder dr alias — points back to primary for tertiary DR (not used in DR workspace)
+# Kept so module signatures match dev/. All enable_dr resources have count = 0 here.
 provider "aws" {
   alias  = "dr"
   region = var.dr_region
@@ -25,26 +27,16 @@ provider "aws" {
   }
 }
 
-# -----------------------------------------------------
-# EKS auth — token generated via AWS SDK (works in TFC).
-# References module output so it's deferred until EKS exists.
-# -----------------------------------------------------
 data "aws_eks_cluster_auth" "main" {
   name = module.eks.cluster_name
 }
 
-# -----------------------------------------------------
-# Kubernetes provider
-# -----------------------------------------------------
 provider "kubernetes" {
   host                   = module.eks.cluster_endpoint
   cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
   token                  = data.aws_eks_cluster_auth.main.token
 }
 
-# -----------------------------------------------------
-# Helm provider
-# -----------------------------------------------------
 provider "helm" {
   kubernetes {
     host                   = module.eks.cluster_endpoint

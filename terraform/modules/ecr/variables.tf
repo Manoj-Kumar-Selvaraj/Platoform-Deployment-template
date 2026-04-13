@@ -21,6 +21,18 @@ variable "untagged_expiry_days" {
   default     = 7
 }
 
+variable "enable_dr_replication" {
+  description = "Enable ECR cross-region replication to DR region"
+  type        = bool
+  default     = false
+}
+
+variable "dr_region" {
+  description = "Secondary AWS region for ECR image replication"
+  type        = string
+  default     = "us-west-2"
+}
+
 variable "tags" {
   description = "Additional tags"
   type        = map(string)

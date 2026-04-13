@@ -22,3 +22,8 @@ output "external_dns_role_arn" {
   description = "ARN of the ExternalDNS IRSA role"
   value       = aws_iam_role.external_dns.arn
 }
+
+output "velero_role_arn" {
+  description = "ARN of the Velero IRSA role"
+  value       = aws_iam_role.velero.arn
+}

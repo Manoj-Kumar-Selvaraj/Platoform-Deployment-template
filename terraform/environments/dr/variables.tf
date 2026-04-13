@@ -1,10 +1,13 @@
+# DR workspace variables — identical to dev except region/cluster defaults
+# Override values in TFC workspace variables
+
 # -----------------------------------------------------
 # General
 # -----------------------------------------------------
 variable "aws_region" {
   description = "AWS region for all resources"
   type        = string
-  default     = "us-east-1"
+  default     = "us-west-2"
 }
 
 variable "project_name" {
@@ -44,25 +47,25 @@ variable "route53_zone_id" {
 variable "vpc_cidr" {
   description = "CIDR block for the VPC"
   type        = string
-  default     = "10.10.0.0/16"
+  default     = "10.20.0.0/16"
 }
 
 variable "public_subnet_cidrs" {
   description = "CIDR blocks for public subnets"
   type        = list(string)
-  default     = ["10.10.1.0/24", "10.10.2.0/24"]
+  default     = ["10.20.1.0/24", "10.20.2.0/24"]
 }
 
 variable "private_subnet_cidrs" {
   description = "CIDR blocks for private subnets"
   type        = list(string)
-  default     = ["10.10.11.0/24", "10.10.12.0/24"]
+  default     = ["10.20.11.0/24", "10.20.12.0/24"]
 }
 
 variable "availability_zones" {
   description = "Availability zones to use"
   type        = list(string)
-  default     = ["us-east-1a", "us-east-1b"]
+  default     = ["us-west-2a", "us-west-2b"]
 }
 
 variable "enable_nat_gateway_per_az" {
@@ -77,7 +80,7 @@ variable "enable_nat_gateway_per_az" {
 variable "cluster_name" {
   description = "Name of the EKS cluster"
   type        = string
-  default     = "platform-mvp-dev"
+  default     = "platform-mvp-dr"
 }
 
 variable "kubernetes_version" {
@@ -98,7 +101,6 @@ variable "eks_public_access_cidrs" {
   default     = ["0.0.0.0/0"]
 }
 
-# Node group: platform-control
 variable "platform_control_instance_types" {
   description = "Instance types for platform-control node group"
   type        = list(string)
@@ -123,7 +125,6 @@ variable "platform_control_max" {
   default     = 3
 }
 
-# Node group: platform-exec
 variable "platform_exec_instance_types" {
   description = "Instance types for platform-exec node group"
   type        = list(string)
@@ -193,6 +194,13 @@ variable "rds_backup_retention_period" {
   default     = 7
 }
 
+# During DR: set this to the restored RDS instance endpoint
+variable "rds_endpoint_override" {
+  description = "Override RDS endpoint — set during DR recovery to the restored instance address in us-west-2."
+  type        = string
+  default     = ""
+}
+
 # -----------------------------------------------------
 # ECR
 # -----------------------------------------------------
@@ -236,7 +244,7 @@ variable "backup_retention_days" {
 }
 
 # -----------------------------------------------------
-# Jenkins (set as sensitive TFC variables)
+# Jenkins
 # -----------------------------------------------------
 variable "jenkins_admin_user" {
   description = "Jenkins admin username"
@@ -254,7 +262,7 @@ variable "jenkins_admin_password" {
 # SonarQube Integration
 # -----------------------------------------------------
 variable "sonarqube_token" {
-  description = "SonarQube API token for Jenkins integration. Leave empty on first deploy, set after SonarQube is up."
+  description = "SonarQube API token for Jenkins integration."
   type        = string
   sensitive   = true
   default     = ""
@@ -264,13 +272,13 @@ variable "sonarqube_token" {
 # Sample App
 # -----------------------------------------------------
 variable "deploy_sample_app" {
-  description = "Deploy sample app Helm chart. Set true after pushing image to ECR."
+  description = "Deploy sample app Helm chart."
   type        = bool
   default     = false
 }
 
 variable "sample_app_image_tag" {
-  description = "Sample app image tag to deploy (must exist in ECR)"
+  description = "Sample app image tag to deploy"
   type        = string
   default     = "latest"
 }
@@ -279,25 +287,19 @@ variable "sample_app_image_tag" {
 # Disaster Recovery
 # -----------------------------------------------------
 variable "dr_region" {
-  description = "Secondary AWS region for disaster recovery replication"
+  description = "Tertiary region (unused in DR workspace — no DR-of-DR)"
   type        = string
-  default     = "us-west-2"
+  default     = "us-east-1"
 }
 
 variable "enable_dr" {
-  description = "Enable cross-region DR: backup copy, S3 CRR, RDS replication, ECR replication. Set true after initial deploy is stable."
+  description = "Enable DR replication (false in DR workspace — no DR-of-DR)"
   type        = bool
   default     = false
 }
 
 variable "enable_velero" {
-  description = "Deploy Velero for Kubernetes-level backup of namespaces and PVC data to S3"
+  description = "Deploy Velero — reads from the CRR-replicated S3 bucket after restore"
   type        = bool
-  default     = false
-}
-
-variable "rds_endpoint_override" {
-  description = "Override RDS endpoint. Used during DR recovery when restoring RDS from a replicated backup in the secondary region."
-  type        = string
-  default     = ""
+  default     = true
 }

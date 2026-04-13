@@ -59,3 +59,22 @@ resource "aws_ecr_lifecycle_policy" "main" {
     ]
   })
 }
+
+# -----------------------------------------------------
+# ECR Cross-Region Replication (DR)
+# Account-level resource — only one allowed per account
+# -----------------------------------------------------
+data "aws_caller_identity" "current" {}
+
+resource "aws_ecr_replication_configuration" "dr" {
+  count = var.enable_dr_replication ? 1 : 0
+
+  replication_configuration {
+    rule {
+      destination {
+        region      = var.dr_region
+        registry_id = data.aws_caller_identity.current.account_id
+      }
+    }
+  }
+}
