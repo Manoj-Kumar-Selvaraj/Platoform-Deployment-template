@@ -465,6 +465,7 @@ resource "helm_release" "jenkins" {
   namespace  = kubernetes_namespace.jenkins.metadata[0].name
   version    = "5.1.5"
   timeout    = 600
+  force_update = true
 
   # Controller image
   set {
