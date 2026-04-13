@@ -486,6 +486,7 @@ resource "helm_release" "jenkins" {
   set {
     name  = "controller.numExecutors"
     value = "0"
+    type  = "string"
   }
 
   # Admin credentials from secret
@@ -595,6 +596,7 @@ resource "helm_release" "jenkins" {
   set {
     name  = "controller.JCasC.defaultConfig"
     value = "true"
+    type  = "string"
   }
 
   set {
