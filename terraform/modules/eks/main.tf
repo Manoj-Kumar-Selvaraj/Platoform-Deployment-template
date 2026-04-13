@@ -15,7 +15,8 @@ resource "aws_eks_cluster" "main" {
   }
 
   access_config {
-    authentication_mode = "API_AND_CONFIG_MAP"
+    authentication_mode                         = "API_AND_CONFIG_MAP"
+    bootstrap_cluster_creator_admin_permissions = true
   }
 
   tags = merge(var.tags, {
@@ -23,6 +24,33 @@ resource "aws_eks_cluster" "main" {
   })
 
   depends_on = [var.cluster_role_arn]
+}
+
+# -----------------------------------------------------
+# Explicit access entry for the Terraform caller (TFC OIDC role)
+# Ensures the role that runs terraform has cluster admin access
+# -----------------------------------------------------
+data "aws_caller_identity" "current" {}
+data "aws_iam_session_context" "current" {
+  arn = data.aws_caller_identity.current.arn
+}
+
+resource "aws_eks_access_entry" "terraform_caller" {
+  cluster_name  = aws_eks_cluster.main.name
+  principal_arn = data.aws_iam_session_context.current.issuer_arn
+  type          = "STANDARD"
+}
+
+resource "aws_eks_access_policy_association" "terraform_caller" {
+  cluster_name  = aws_eks_cluster.main.name
+  principal_arn = data.aws_iam_session_context.current.issuer_arn
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+
+  access_scope {
+    type = "cluster"
+  }
+
+  depends_on = [aws_eks_access_entry.terraform_caller]
 }
 
 # -----------------------------------------------------

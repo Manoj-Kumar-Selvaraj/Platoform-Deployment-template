@@ -11,34 +11,29 @@ provider "aws" {
 }
 
 # -----------------------------------------------------
-# Kubernetes provider — uses exec-based auth so tokens
-# are generated at apply time (not cached from plan).
-# This avoids the chicken-and-egg problem on first apply
-# where the EKS cluster doesn't exist yet during plan.
+# EKS auth — token generated via AWS SDK (works in TFC).
+# References module output so it's deferred until EKS exists.
+# -----------------------------------------------------
+data "aws_eks_cluster_auth" "main" {
+  name = module.eks.cluster_name
+}
+
+# -----------------------------------------------------
+# Kubernetes provider
 # -----------------------------------------------------
 provider "kubernetes" {
   host                   = module.eks.cluster_endpoint
   cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
-
-  exec {
-    api_version = "client.authentication.k8s.io/v1beta1"
-    command     = "aws"
-    args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name, "--region", var.aws_region]
-  }
+  token                  = data.aws_eks_cluster_auth.main.token
 }
 
 # -----------------------------------------------------
-# Helm provider — same exec-based auth
+# Helm provider
 # -----------------------------------------------------
 provider "helm" {
   kubernetes {
     host                   = module.eks.cluster_endpoint
     cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
-
-    exec {
-      api_version = "client.authentication.k8s.io/v1beta1"
-      command     = "aws"
-      args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name, "--region", var.aws_region]
-    }
+    token                  = data.aws_eks_cluster_auth.main.token
   }
 }
