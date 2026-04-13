@@ -78,6 +78,7 @@ resource "helm_release" "aws_lb_controller" {
   namespace  = "kube-system"
   version    = "1.7.2"
   timeout    = 600
+  wait       = false
 
   set {
     name  = "clusterName"
