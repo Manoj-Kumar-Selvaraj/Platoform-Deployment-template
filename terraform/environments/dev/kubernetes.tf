@@ -121,6 +121,7 @@ resource "helm_release" "aws_lb_controller" {
   set {
     name  = "tolerations[0].value"
     value = "true"
+    type  = "string"
   }
 
   set {
@@ -228,6 +229,7 @@ resource "helm_release" "external_dns" {
   set {
     name  = "tolerations[0].value"
     value = "true"
+    type  = "string"
   }
 
   set {
@@ -370,6 +372,7 @@ resource "helm_release" "sonarqube" {
   set {
     name  = "tolerations[0].value"
     value = "true"
+    type  = "string"
   }
 
   set {
@@ -729,6 +732,7 @@ resource "helm_release" "jenkins" {
   set {
     name  = "controller.tolerations[0].value"
     value = "true"
+    type  = "string"
   }
 
   set {
