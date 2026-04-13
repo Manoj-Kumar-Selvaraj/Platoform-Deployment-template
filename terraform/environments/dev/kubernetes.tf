@@ -91,6 +91,11 @@ resource "helm_release" "aws_lb_controller" {
   }
 
   set {
+    name  = "vpcId"
+    value = module.network.vpc_id
+  }
+
+  set {
     name  = "serviceAccount.create"
     value = "true"
   }
