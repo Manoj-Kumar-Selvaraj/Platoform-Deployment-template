@@ -18,8 +18,9 @@ resource "aws_db_parameter_group" "main" {
   family = "postgres15"
 
   parameter {
-    name  = "max_connections"
-    value = "200"
+    name         = "max_connections"
+    value        = "200"
+    apply_method = "pending-reboot"
   }
 
   tags = merge(var.tags, {

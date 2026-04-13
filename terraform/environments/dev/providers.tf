@@ -11,35 +11,34 @@ provider "aws" {
 }
 
 # -----------------------------------------------------
-# EKS auth data sources — used by kubernetes/helm providers
-# These wait for the EKS cluster to exist before resolving
-# -----------------------------------------------------
-data "aws_eks_cluster" "main" {
-  name       = module.eks.cluster_name
-  depends_on = [module.eks]
-}
-
-data "aws_eks_cluster_auth" "main" {
-  name       = module.eks.cluster_name
-  depends_on = [module.eks]
-}
-
-# -----------------------------------------------------
-# Kubernetes provider — manages namespaces, secrets, storage classes
+# Kubernetes provider — uses exec-based auth so tokens
+# are generated at apply time (not cached from plan).
+# This avoids the chicken-and-egg problem on first apply
+# where the EKS cluster doesn't exist yet during plan.
 # -----------------------------------------------------
 provider "kubernetes" {
-  host                   = data.aws_eks_cluster.main.endpoint
-  cluster_ca_certificate = base64decode(data.aws_eks_cluster.main.certificate_authority[0].data)
-  token                  = data.aws_eks_cluster_auth.main.token
+  host                   = module.eks.cluster_endpoint
+  cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
+
+  exec {
+    api_version = "client.authentication.k8s.io/v1beta1"
+    command     = "aws"
+    args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name, "--region", var.aws_region]
+  }
 }
 
 # -----------------------------------------------------
-# Helm provider — manages all Helm releases
+# Helm provider — same exec-based auth
 # -----------------------------------------------------
 provider "helm" {
   kubernetes {
-    host                   = data.aws_eks_cluster.main.endpoint
-    cluster_ca_certificate = base64decode(data.aws_eks_cluster.main.certificate_authority[0].data)
-    token                  = data.aws_eks_cluster_auth.main.token
+    host                   = module.eks.cluster_endpoint
+    cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
+
+    exec {
+      api_version = "client.authentication.k8s.io/v1beta1"
+      command     = "aws"
+      args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name, "--region", var.aws_region]
+    }
   }
 }
