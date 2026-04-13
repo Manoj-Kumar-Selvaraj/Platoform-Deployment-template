@@ -37,3 +37,15 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "trigger_adhoc_backup" {
+  description = "Trigger ad-hoc backup. Set to any non-empty string to run on-demand backups. Clear (set to empty string) after backup completes."
+  type        = string
+  default     = ""
+}
+
+variable "aws_region" {
+  description = "AWS region — passed to AWS CLI for ad-hoc backup jobs"
+  type        = string
+  default     = "us-east-1"
+}

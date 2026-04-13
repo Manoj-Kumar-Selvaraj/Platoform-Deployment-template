@@ -301,3 +301,12 @@ variable "rds_endpoint_override" {
   type        = string
   default     = ""
 }
+
+# ==============================================
+# Ad-hoc Backup
+# ==============================================
+variable "trigger_adhoc_backup" {
+  description = "Trigger ad-hoc on-demand backups for all EFS and RDS resources. Set to any non-empty value (e.g., current date YYYY-MM-DD) to run. Clear after backup completes."
+  type        = string
+  default     = ""
+}

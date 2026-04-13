@@ -141,13 +141,15 @@ module "s3_backup" {
 module "backup" {
   source = "../../modules/backup"
 
-  project_name      = var.project_name
-  efs_arns          = [module.efs.efs_arn]
-  rds_arns          = [module.rds_postgres.db_instance_arn]
-  retention_days    = var.backup_retention_days
-  dr_vault_arn      = ""   # No DR-of-DR
-  dr_retention_days = 14
-  tags              = local.common_tags
+  project_name           = var.project_name
+  efs_arns               = [module.efs.efs_arn]
+  rds_arns               = [module.rds_postgres.db_instance_arn]
+  retention_days         = var.backup_retention_days
+  dr_vault_arn           = ""   # No DR-of-DR
+  dr_retention_days      = 14
+  trigger_adhoc_backup   = var.trigger_adhoc_backup
+  aws_region             = var.aws_region
+  tags                   = local.common_tags
 }
 
 module "ansible_runner" {

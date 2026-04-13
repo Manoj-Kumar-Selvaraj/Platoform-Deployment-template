@@ -150,13 +150,15 @@ module "s3_backup" {
 module "backup" {
   source = "../../modules/backup"
 
-  project_name      = var.project_name
-  efs_arns          = [module.efs.efs_arn]
-  rds_arns          = [module.rds_postgres.db_instance_arn]
-  retention_days    = var.backup_retention_days
-  dr_vault_arn      = var.enable_dr ? aws_backup_vault.dr[0].arn : ""
-  dr_retention_days = 14
-  tags              = local.common_tags
+  project_name           = var.project_name
+  efs_arns               = [module.efs.efs_arn]
+  rds_arns               = [module.rds_postgres.db_instance_arn]
+  retention_days         = var.backup_retention_days
+  dr_vault_arn           = var.enable_dr ? aws_backup_vault.dr[0].arn : ""
+  dr_retention_days      = 14
+  trigger_adhoc_backup   = var.trigger_adhoc_backup
+  aws_region             = var.aws_region
+  tags                   = local.common_tags
 }
 
 # --- Ansible Runner ---
@@ -181,6 +183,10 @@ resource "aws_backup_vault" "dr" {
   provider = aws.dr
   name     = "${var.project_name}-backup-vault-dr"
   tags     = local.common_tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # DR S3 Bucket (replication destination for backup bucket)
@@ -198,6 +204,19 @@ resource "aws_s3_bucket_versioning" "backup_dr" {
   versioning_configuration { status = "Enabled" }
 }
 
+resource "aws_s3_bucket_server_side_encryption_configuration" "backup_dr" {
+  count    = var.enable_dr ? 1 : 0
+  provider = aws.dr
+  bucket   = aws_s3_bucket.backup_dr[0].id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+    bucket_key_enabled = true
+  }
+}
+
 resource "aws_s3_bucket_public_access_block" "backup_dr" {
   count    = var.enable_dr ? 1 : 0
   provider = aws.dr
@@ -207,6 +226,37 @@ resource "aws_s3_bucket_public_access_block" "backup_dr" {
   block_public_policy     = true
   ignore_public_acls      = true
   restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "backup_dr" {
+  count    = var.enable_dr ? 1 : 0
+  provider = aws.dr
+  bucket   = aws_s3_bucket.backup_dr[0].id
+
+  rule {
+    id     = "transition-and-expire"
+    status = "Enabled"
+
+    filter {}
+
+    transition {
+      days          = 30
+      storage_class = "STANDARD_IA"
+    }
+
+    transition {
+      days          = 90
+      storage_class = "GLACIER"
+    }
+
+    expiration {
+      days = 365
+    }
+
+    noncurrent_version_expiration {
+      noncurrent_days = 90
+    }
+  }
 }
 
 # RDS Automated Backup Replication to us-west-2

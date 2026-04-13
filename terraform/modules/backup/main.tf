@@ -87,3 +87,21 @@ resource "aws_backup_selection" "platform" {
 
   resources = concat(var.efs_arns, var.rds_arns)
 }
+
+# ==============================================
+# Ad-hoc On-Demand Backups
+# ==============================================
+# Trigger by setting trigger_adhoc_backup to a non-empty value (e.g., "2026-04-13")
+# Each unique value triggers a new backup run via AWS CLI.
+# After backup completes, clear the value (set to "") to clean up tracking resources.
+# Requires AWS CLI available on the Terraform runner (default in TFC).
+
+resource "terraform_data" "adhoc_backup" {
+  for_each = var.trigger_adhoc_backup != "" ? toset(concat(var.efs_arns, var.rds_arns)) : []
+
+  triggers_replace = var.trigger_adhoc_backup
+
+  provisioner "local-exec" {
+    command = "aws backup start-backup-job --backup-vault-name ${aws_backup_vault.main.name} --resource-arn ${each.value} --iam-role-arn ${aws_iam_role.backup.arn} --region ${var.aws_region}"
+  }
+}
