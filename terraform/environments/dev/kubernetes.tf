@@ -273,6 +273,7 @@ resource "helm_release" "sonarqube" {
   namespace  = kubernetes_namespace.sonarqube.metadata[0].name
   version    = "10.4.0"
   timeout    = 600
+  force_update = true
 
   # Edition
   set {
