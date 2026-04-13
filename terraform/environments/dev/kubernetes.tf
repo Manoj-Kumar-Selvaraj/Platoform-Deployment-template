@@ -73,8 +73,7 @@ resource "kubernetes_storage_class" "efs" {
 # --- AWS Load Balancer Controller ---
 resource "helm_release" "aws_lb_controller" {
   name       = "aws-load-balancer-controller"
-  repository = "https://aws.github.io/eks-charts"
-  chart      = "aws-load-balancer-controller"
+  chart      = "oci://public.ecr.aws/eks-charts/aws-load-balancer-controller"
   namespace  = "kube-system"
   version    = "1.7.2"
   timeout    = 600
@@ -136,8 +135,7 @@ resource "helm_release" "aws_lb_controller" {
 # --- EFS CSI Driver ---
 resource "helm_release" "efs_csi_driver" {
   name       = "aws-efs-csi-driver"
-  repository = "https://kubernetes-sigs.github.io/aws-efs-csi-driver/"
-  chart      = "aws-efs-csi-driver"
+  chart      = "oci://public.ecr.aws/efs-csi-driver/helm-chart/aws-efs-csi-driver"
   namespace  = "kube-system"
   version    = "3.0.5"
   timeout    = 600
@@ -163,8 +161,7 @@ resource "helm_release" "efs_csi_driver" {
 # --- ExternalDNS ---
 resource "helm_release" "external_dns" {
   name       = "external-dns"
-  repository = "https://kubernetes-sigs.github.io/external-dns/"
-  chart      = "external-dns"
+  chart      = "oci://registry.k8s.io/external-dns/external-dns"
   namespace  = "kube-system"
   version    = "1.14.3"
   timeout    = 600
