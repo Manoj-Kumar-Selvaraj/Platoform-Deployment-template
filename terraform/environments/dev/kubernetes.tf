@@ -606,7 +606,6 @@ resource "helm_release" "jenkins" {
     value = yamlencode({
       jenkins = {
         systemMessage = "Platform MVP Jenkins — Managed by Terraform + JCasC"
-        numExecutors  = 0
       }
       unclassified = {
         sonarGlobalConfiguration = {
@@ -785,6 +784,16 @@ resource "helm_release" "jenkins" {
   set {
     name  = "serviceAccount.name"
     value = "jenkins"
+  }
+
+  set {
+    name  = "rbac.create"
+    value = "true"
+  }
+
+  set {
+    name  = "rbac.readSecrets"
+    value = "true"
   }
 
   # Agent
