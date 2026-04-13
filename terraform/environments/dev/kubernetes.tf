@@ -271,7 +271,7 @@ resource "helm_release" "sonarqube" {
   repository = "https://SonarSource.github.io/helm-chart-sonarqube"
   chart      = "sonarqube"
   namespace  = kubernetes_namespace.sonarqube.metadata[0].name
-  version    = "10.4.0+2503"
+  version    = "10.4.0"
   timeout    = 600
 
   # Edition
