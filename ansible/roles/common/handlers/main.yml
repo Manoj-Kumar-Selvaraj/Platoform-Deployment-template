@@ -1,0 +1,6 @@
+---
+- name: Restart application
+  systemd:
+    name: "{{ app_name }}"
+    state: restarted
+  when: app_name is defined

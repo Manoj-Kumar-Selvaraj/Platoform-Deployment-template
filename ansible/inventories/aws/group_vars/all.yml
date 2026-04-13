@@ -1,0 +1,9 @@
+---
+ansible_connection: aws_ssm
+ansible_aws_ssm_region: us-east-1
+aws_region: us-east-1
+
+# Application defaults
+app_name: sample-app
+app_port: 3000
+ecr_registry: "" # Set to your ECR registry URL

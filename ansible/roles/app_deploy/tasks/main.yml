@@ -1,0 +1,43 @@
+---
+# App Deploy role — pull and run container from ECR
+- name: Login to ECR
+  shell: |
+    aws ecr get-login-password --region {{ aws_region | default('us-east-1') }} | \
+    docker login --username AWS --password-stdin {{ ecr_registry }}
+  changed_when: false
+  when: ecr_registry is defined and ecr_registry != ""
+
+- name: Pull application image
+  docker_image:
+    name: "{{ image_name }}"
+    tag: "{{ image_tag }}"
+    source: pull
+    force_source: true
+
+- name: Create docker-compose directory
+  file:
+    path: "/opt/app/{{ app_name }}"
+    state: directory
+    mode: "0755"
+
+- name: Deploy docker-compose file
+  template:
+    src: docker-compose.yml.j2
+    dest: "/opt/app/{{ app_name }}/docker-compose.yml"
+    mode: "0644"
+  notify: Restart application container
+
+- name: Start application container
+  shell: |
+    cd /opt/app/{{ app_name }}
+    docker compose up -d
+  changed_when: false
+
+- name: Wait for application to be healthy
+  uri:
+    url: "http://localhost:{{ container_port }}/health"
+    status_code: 200
+  register: health_check
+  retries: 10
+  delay: 5
+  until: health_check.status == 200

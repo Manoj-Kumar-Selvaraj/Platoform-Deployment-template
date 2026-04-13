@@ -1,0 +1,29 @@
+---
+# Docker role — install and configure Docker
+- name: Install Docker (Amazon Linux / RHEL)
+  dnf:
+    name:
+      - docker
+    state: present
+  when: ansible_os_family == "RedHat"
+
+- name: Install Docker (Debian / Ubuntu)
+  apt:
+    name:
+      - docker.io
+    state: present
+    update_cache: true
+  when: ansible_os_family == "Debian"
+
+- name: Start and enable Docker service
+  systemd:
+    name: docker
+    state: started
+    enabled: true
+
+- name: Add deploy user to docker group
+  user:
+    name: "{{ docker_user }}"
+    groups: docker
+    append: true
+  when: docker_user is defined and docker_user != ""

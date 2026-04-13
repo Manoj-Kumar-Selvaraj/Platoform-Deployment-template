@@ -1,0 +1,58 @@
+# =============================================
+# Example variable values for dev environment
+#
+# NON-SENSITIVE values go here (or in TFC as
+# Terraform Variables). SENSITIVE values (passwords,
+# tokens) should ONLY be set in TFC as sensitive
+# Terraform Variables.
+# =============================================
+
+aws_region   = "us-east-1"
+project_name = "platform-mvp"
+environment  = "dev"
+
+# Domain
+domain_name = "manoj-tech-solutions.site"
+# route53_zone_id = ""  # Leave empty to auto-lookup
+
+# Networking
+vpc_cidr             = "10.10.0.0/16"
+public_subnet_cidrs  = ["10.10.1.0/24", "10.10.2.0/24"]
+private_subnet_cidrs = ["10.10.11.0/24", "10.10.12.0/24"]
+availability_zones   = ["us-east-1a", "us-east-1b"]
+
+# EKS
+cluster_name       = "platform-mvp-dev"
+kubernetes_version = "1.29"
+
+# RDS — password MUST be set as sensitive variable in TFC
+rds_instance_class      = "db.t3.medium"
+rds_db_name             = "sonarqube"
+rds_username            = "sonarqube"
+rds_deletion_protection = false
+
+# ECR
+ecr_repository_names = ["sample-app", "jenkins-agent"]
+
+# CodeArtifact
+enable_codeartifact      = true
+codeartifact_domain_name = "platform-mvp"
+
+# Ansible
+ansible_runner_instance_type = "t3.small"
+
+# Backup
+backup_retention_days = 35
+
+# Jenkins — password MUST be set as sensitive variable in TFC
+jenkins_admin_user = "admin"
+
+# SonarQube Integration
+# Leave sonarqube_token empty on first deploy.
+# After SonarQube is up, generate a token in the UI,
+# then set it as a TFC sensitive variable and re-apply.
+
+# Sample App
+# Set to true after you've pushed an image to ECR
+deploy_sample_app    = false
+sample_app_image_tag = "latest"

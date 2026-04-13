@@ -1,0 +1,42 @@
+replicaCount: 2
+
+image:
+  repository: "" # Set by Terraform (module.ecr.repository_urls["sample-app"])
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 3000
+
+ingress:
+  enabled: true
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/certificate-arn: "" # Injected by Terraform (module.route53_acm.certificate_arn)
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    alb.ingress.kubernetes.io/group.name: platform-ingress
+    alb.ingress.kubernetes.io/healthcheck-path: /health
+    external-dns.alpha.kubernetes.io/hostname: app.manoj-tech-solutions.site
+  host: app.manoj-tech-solutions.site
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi
+
+nodeSelector:
+  role: platform-exec
+
+healthCheck:
+  path: /health
+  port: 3000
+  initialDelaySeconds: 10
+  periodSeconds: 15

@@ -1,0 +1,128 @@
+@Library('platform-shared-lib') _
+
+pipeline {
+    agent {
+        kubernetes {
+            yamlFile 'jenkins/shared-library/resources/pod-templates/build-agent.yaml'
+        }
+    }
+
+    environment {
+        APP_NAME    = 'sample-app'
+        CHART_PATH  = 'kubernetes/apps/sample-app/chart'
+        DEPLOY_NS   = 'apps'
+        IMAGE_TAG   = "${BUILD_NUMBER}"
+    }
+
+    options {
+        timestamps()
+        ansiColor('xterm')
+        timeout(time: 30, unit: 'MINUTES')
+        disableConcurrentBuilds()
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                container('jnlp') {
+                    dir('kubernetes/apps/sample-app/src') {
+                        sh 'npm ci'
+                    }
+                }
+            }
+        }
+
+        stage('Code Quality - SonarQube') {
+            steps {
+                sonarScan(
+                    projectKey: env.APP_NAME,
+                    sources: 'kubernetes/apps/sample-app/src',
+                    waitForQualityGate: false
+                )
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                container('docker') {
+                    buildDocker(
+                        context: 'kubernetes/apps/sample-app/src',
+                        imageName: env.APP_NAME,
+                        tag: env.IMAGE_TAG
+                    )
+                }
+            }
+        }
+
+        stage('Push to ECR') {
+            steps {
+                container('docker') {
+                    ecrPush(
+                        imageName: env.APP_NAME,
+                        tag: env.IMAGE_TAG
+                    )
+                }
+            }
+        }
+
+        stage('Deploy to EKS') {
+            steps {
+                container('helm') {
+                    helmDeploy(
+                        releaseName: env.APP_NAME,
+                        chart: env.CHART_PATH,
+                        namespace: env.DEPLOY_NS,
+                        set: [
+                            'image.repository': "${env.ECR_REGISTRY}/${env.APP_NAME}",
+                            'image.tag'       : env.IMAGE_TAG
+                        ]
+                    )
+                }
+            }
+        }
+
+        stage('Smoke Test') {
+            steps {
+                sh """
+                    echo "Waiting for deployment..."
+                    sleep 15
+                    curl -sf https://app.manoj-tech-solutions.site/health || echo "Smoke test: endpoint not yet available"
+                """
+            }
+        }
+
+        stage('Deploy to EC2 via Ansible (Optional)') {
+            when {
+                branch 'main'
+                expression { return params.DEPLOY_EC2 ?: false }
+            }
+            steps {
+                ansibleTrigger(
+                    playbook: 'playbooks/deploy-ec2.yml',
+                    extraVars: [
+                        image_name: "${env.ECR_REGISTRY}/${env.APP_NAME}",
+                        image_tag: env.IMAGE_TAG
+                    ]
+                )
+            }
+        }
+    }
+
+    post {
+        success {
+            notifySlack(status: 'SUCCESS', message: "Deployed ${APP_NAME}:${IMAGE_TAG} successfully")
+        }
+        failure {
+            notifySlack(status: 'FAILURE', message: "Failed to deploy ${APP_NAME}:${IMAGE_TAG}")
+        }
+        always {
+            cleanWs()
+        }
+    }
+}

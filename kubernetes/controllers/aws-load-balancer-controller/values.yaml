@@ -1,0 +1,32 @@
+# AWS Load Balancer Controller Helm Values (Reference Only)
+# Chart: eks/aws-load-balancer-controller
+# Repo: https://aws.github.io/eks-charts
+# NOTE: Actual deployment uses Terraform set blocks in kubernetes.tf.
+#       This file documents the intended configuration.
+
+clusterName: platform-mvp-dev
+region: us-east-1
+
+serviceAccount:
+  create: true
+  name: aws-load-balancer-controller
+  annotations:
+    eks.amazonaws.com/role-arn: "" # Injected by Terraform (module.iam.alb_controller_role_arn)
+
+replicaCount: 2
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+nodeSelector:
+  role: platform-control
+
+tolerations:
+  - key: platform-control
+    value: "true"
+    effect: NoSchedule

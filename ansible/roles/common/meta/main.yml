@@ -1,0 +1,14 @@
+---
+galaxy_info:
+  role_name: common
+  author: platform-team
+  description: Common base system configuration
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Amazon
+      versions:
+        - "2023"
+    - name: Ubuntu
+      versions:
+        - jammy
+dependencies: []

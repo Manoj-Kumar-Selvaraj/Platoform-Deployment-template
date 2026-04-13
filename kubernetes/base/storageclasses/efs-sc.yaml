@@ -1,0 +1,14 @@
+# EFS StorageClass (Reference Only)
+# Actual resource is created by Terraform kubernetes_storage_class in kubernetes.tf
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: efs-sc
+provisioner: efs.csi.aws.com
+parameters:
+  provisioningMode: efs-ap
+  fileSystemId: "" # Injected by Terraform (module.efs.efs_id)
+  directoryPerms: "700"
+reclaimPolicy: Retain
+volumeBindingMode: Immediate

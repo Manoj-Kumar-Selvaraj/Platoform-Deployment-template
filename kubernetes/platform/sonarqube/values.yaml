@@ -1,0 +1,69 @@
+# SonarQube Helm Values (Reference Only)
+# Chart: sonarqube/sonarqube v10.x
+# Repo: https://SonarSource.github.io/helm-chart-sonarqube
+# NOTE: Actual deployment uses Terraform set blocks in kubernetes.tf.
+
+edition: community
+
+replicaCount: 1
+
+image:
+  repository: sonarqube
+  tag: lts-community
+
+service:
+  type: ClusterIP
+  port: 9000
+
+ingress:
+  enabled: true
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/certificate-arn: "" # Injected by Terraform (module.route53_acm.certificate_arn)
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    alb.ingress.kubernetes.io/group.name: platform-ingress
+    alb.ingress.kubernetes.io/healthcheck-path: /api/system/status
+    external-dns.alpha.kubernetes.io/hostname: sonar.manoj-tech-solutions.site
+  hosts:
+    - name: sonar.manoj-tech-solutions.site
+
+# External PostgreSQL (RDS)
+postgresql:
+  enabled: false
+
+jdbcOverwrite:
+  enable: true
+  jdbcUrl: "jdbc:postgresql://RDS_ENDPOINT:5432/sonarqube" # Injected by Terraform (module.rds_postgres.endpoint)
+  jdbcUsername: "sonarqube"
+  jdbcSecretName: "sonarqube-db-credentials"
+  jdbcSecretPasswordKey: "password"
+
+resources:
+  requests:
+    cpu: "500m"
+    memory: "2Gi"
+  limits:
+    cpu: "2"
+    memory: "4Gi"
+
+nodeSelector:
+  role: platform-control
+
+tolerations:
+  - key: platform-control
+    value: "true"
+    effect: NoSchedule
+
+# SonarQube needs max_map_count
+initSysctl:
+  enabled: true
+  vmMaxMapCount: 524288
+  fsFileMax: 131072
+
+persistence:
+  enabled: true
+  storageClass: gp2
+  size: 10Gi

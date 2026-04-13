@@ -1,0 +1,86 @@
+# Jenkins Helm Values (Reference Only)
+# Chart: jenkinsci/jenkins v5.x
+# Repo: https://charts.jenkins.io
+# NOTE: Actual deployment uses Terraform set blocks in kubernetes.tf.
+
+controller:
+  image:
+    registry: "" # Set to ECR registry if using custom image
+    repository: jenkins/jenkins
+    tag: lts-jdk17
+
+  numExecutors: 0
+
+  installPlugins: false # Plugins managed via custom image or initContainerEnv
+
+  JCasC:
+    defaultConfig: false
+    configScripts:
+      platform-config: |
+        # JCasC loaded from casc/jenkins.yaml via ConfigMap or custom image
+        # See kubernetes/platform/jenkins/casc/jenkins.yaml
+
+  sidecars:
+    configAutoReload:
+      enabled: true
+
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2"
+      memory: "3Gi"
+
+  serviceType: ClusterIP
+
+  ingress:
+    enabled: true
+    apiVersion: networking.k8s.io/v1
+    annotations:
+      kubernetes.io/ingress.class: alb
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/certificate-arn: "" # Injected by Terraform (module.route53_acm.certificate_arn)
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS": 443}]'
+      alb.ingress.kubernetes.io/ssl-redirect: "443"
+      alb.ingress.kubernetes.io/group.name: platform-ingress
+      alb.ingress.kubernetes.io/healthcheck-path: /login
+      external-dns.alpha.kubernetes.io/hostname: jenkins.manoj-tech-solutions.site
+    hostName: jenkins.manoj-tech-solutions.site
+
+  nodeSelector:
+    role: platform-control
+
+  tolerations:
+    - key: platform-control
+      value: "true"
+      effect: NoSchedule
+
+persistence:
+  enabled: true
+  storageClass: efs-sc
+  accessMode: ReadWriteMany
+  size: 50Gi
+
+agent:
+  enabled: true
+  namespace: jenkins
+
+  podTemplates:
+    default: |
+      - name: default
+        label: kubernetes
+        nodeSelector: "role=platform-exec"
+        containers:
+          - name: jnlp
+            image: jenkins/inbound-agent:latest-jdk17
+            workingDir: /home/jenkins/agent
+            resourceRequestCpu: 250m
+            resourceRequestMemory: 256Mi
+
+serviceAccount:
+  create: true
+  name: jenkins
+
+additionalConfig: {}

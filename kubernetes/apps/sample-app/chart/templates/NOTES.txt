@@ -1,0 +1,10 @@
+Sample App deployed successfully!
+
+Access the application:
+  {{- if .Values.ingress.enabled }}
+  URL: https://{{ .Values.ingress.host }}
+  {{- else }}
+  kubectl port-forward svc/{{ include "sample-app.fullname" . }} 3000:{{ .Values.service.port }} -n {{ .Release.Namespace }}
+  {{- end }}
+
+Health check: https://{{ .Values.ingress.host }}/health

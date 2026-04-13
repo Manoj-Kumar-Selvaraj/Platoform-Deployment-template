@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+  {{ app_name }}:
+    image: "{{ image_name }}:{{ image_tag }}"
+    container_name: "{{ app_name }}"
+    restart: unless-stopped
+    ports:
+      - "{{ host_port }}:{{ container_port }}"
+    environment:
+      - APP_VERSION={{ image_tag }}
+      - PORT={{ container_port }}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:{{ container_port }}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

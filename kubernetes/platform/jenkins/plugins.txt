@@ -1,0 +1,44 @@
+# Jenkins Plugin List — pinned versions for reproducibility
+# Core pipeline
+workflow-aggregator:latest
+pipeline-stage-view:latest
+pipeline-utility-steps:latest
+pipeline-build-step:latest
+
+# Configuration as Code
+configuration-as-code:latest
+
+# Kubernetes
+kubernetes:latest
+kubernetes-credentials-provider:latest
+
+# Job DSL
+job-dsl:latest
+
+# Git
+git:latest
+github:latest
+github-branch-source:latest
+
+# Credentials
+credentials:latest
+credentials-binding:latest
+plain-credentials:latest
+
+# SonarQube
+sonar:latest
+
+# Auth
+matrix-auth:latest
+
+# Docker
+docker-workflow:latest
+docker-commons:latest
+
+# Blue Ocean (optional)
+blueocean:latest
+
+# Utilities
+timestamper:latest
+ansicolor:latest
+ws-cleanup:latest

@@ -1,0 +1,15 @@
+---
+# Deploy application to on-prem servers via SSH
+- name: Deploy Application to On-Premises
+  hosts: app_servers
+  become: true
+  vars:
+    image_name: "{{ ecr_registry }}/{{ app_name }}"
+    image_tag: "latest"
+    container_port: "{{ app_port }}"
+
+  roles:
+    - common
+    - docker
+    - app_deploy
+    - nginx

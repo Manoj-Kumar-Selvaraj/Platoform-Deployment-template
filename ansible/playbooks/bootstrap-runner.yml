@@ -1,0 +1,55 @@
+---
+# Bootstrap the Ansible runner node
+- name: Bootstrap Ansible Runner
+  hosts: localhost
+  connection: local
+  become: true
+
+  tasks:
+    - name: Update system packages
+      dnf:
+        name: "*"
+        state: latest
+
+    - name: Install base packages
+      dnf:
+        name:
+          - python3
+          - python3-pip
+          - git
+          - jq
+          - unzip
+        state: present
+
+    - name: Install Ansible and AWS SDK
+      pip:
+        name:
+          - ansible
+          - boto3
+          - botocore
+        executable: pip3
+
+    - name: Install Ansible collections
+      command: ansible-galaxy collection install {{ item }}
+      loop:
+        - amazon.aws
+        - community.docker
+        - community.general
+      changed_when: false
+
+    - name: Install Docker
+      dnf:
+        name: docker
+        state: present
+
+    - name: Start and enable Docker
+      systemd:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Create Ansible workspace
+      file:
+        path: /opt/ansible
+        state: directory
+        mode: "0755"

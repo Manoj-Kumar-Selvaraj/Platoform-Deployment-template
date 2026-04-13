@@ -1,0 +1,38 @@
+# ExternalDNS Helm Values (Reference Only)
+# Chart: external-dns/external-dns
+# Repo: https://kubernetes-sigs.github.io/external-dns/
+# NOTE: Actual deployment uses Terraform set blocks in kubernetes.tf.
+
+provider: aws
+aws:
+  region: us-east-1
+  zoneType: public
+
+domainFilters:
+  - manoj-tech-solutions.site
+
+policy: sync
+registry: txt
+txtOwnerId: platform-mvp-dev
+
+serviceAccount:
+  create: true
+  name: external-dns
+  annotations:
+    eks.amazonaws.com/role-arn: "" # Injected by Terraform (module.iam.externaldns_role_arn)
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
+
+nodeSelector:
+  role: platform-control
+
+tolerations:
+  - key: platform-control
+    value: "true"
+    effect: NoSchedule

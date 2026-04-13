@@ -1,0 +1,4 @@
+---
+app_name: sample-app
+upstream_port: 3000
+server_name: _

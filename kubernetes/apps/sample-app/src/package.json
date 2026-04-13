@@ -1,0 +1,13 @@
+{
+  "name": "sample-app",
+  "version": "1.0.0",
+  "description": "Platform MVP sample application",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "test": "echo \"No tests configured yet\" && exit 0"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

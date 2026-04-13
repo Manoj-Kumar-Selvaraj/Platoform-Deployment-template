@@ -1,0 +1,6 @@
+---
+app_name: sample-app
+image_name: ""
+image_tag: latest
+container_port: 3000
+host_port: 3000

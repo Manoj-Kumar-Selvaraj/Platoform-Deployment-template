@@ -1,0 +1,19 @@
+# AWS EFS CSI Driver Helm Values (Reference Only)
+# Chart: aws-efs-csi-driver/aws-efs-csi-driver
+# Repo: https://kubernetes-sigs.github.io/aws-efs-csi-driver/
+# NOTE: Actual deployment uses Terraform set blocks in kubernetes.tf.
+
+controller:
+  serviceAccount:
+    create: true
+    name: efs-csi-controller-sa
+    annotations:
+      eks.amazonaws.com/role-arn: "" # Injected by Terraform (module.iam.efs_csi_role_arn)
+
+node:
+  serviceAccount:
+    create: true
+    name: efs-csi-node-sa
+
+storageClasses: []
+# Storage class is managed separately in kubernetes/base/storageclasses/

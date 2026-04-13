@@ -1,0 +1,8 @@
+---
+ansible_connection: ssh
+ansible_user: deploy
+ansible_become: true
+
+# Application defaults
+app_name: sample-app
+app_port: 3000

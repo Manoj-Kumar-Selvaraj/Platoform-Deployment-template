@@ -1,0 +1,39 @@
+name: Validate Kubernetes
+
+on:
+  push:
+    paths:
+      - 'kubernetes/**'
+  pull_request:
+    paths:
+      - 'kubernetes/**'
+
+jobs:
+  validate:
+    name: Helm & Manifest Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'v3.14.0'
+
+      - name: Lint Sample App Chart
+        run: helm lint kubernetes/apps/sample-app/chart/
+
+      - name: Template Sample App Chart
+        run: |
+          helm template sample-app kubernetes/apps/sample-app/chart/ \
+            --set image.repository=test-registry/sample-app \
+            --set image.tag=test > /dev/null
+
+      - name: Validate YAML manifests
+        run: |
+          for f in kubernetes/base/**/*.yaml; do
+            echo "Validating $f"
+            python3 -c "import yaml; yaml.safe_load(open('$f'))" || exit 1
+          done

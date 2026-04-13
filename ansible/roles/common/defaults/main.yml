@@ -1,0 +1,9 @@
+---
+timezone: UTC
+update_packages: true
+base_packages:
+  - curl
+  - wget
+  - jq
+  - unzip
+  - ca-certificates

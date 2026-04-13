@@ -1,0 +1,24 @@
+---
+# Common role — base system setup
+- name: Update system packages
+  package:
+    name: "*"
+    state: latest
+  when: update_packages | default(true)
+
+- name: Install base packages
+  package:
+    name: "{{ base_packages }}"
+    state: present
+
+- name: Set timezone
+  timezone:
+    name: "{{ timezone }}"
+
+- name: Ensure /opt/app directory exists
+  file:
+    path: /opt/app
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
