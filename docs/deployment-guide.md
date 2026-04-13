@@ -58,13 +58,7 @@ In your TFC workspace → **Variables** tab, add:
 | `jenkins_admin_password` | terraform | Yes | Jenkins admin password |
 | `domain_name` | terraform | No | `manoj-tech-solutions.site` |
 
-**Environment Variables:**
-
-| Key | Category | Sensitive | Value |
-|-----|----------|-----------|-------|
-| `AWS_ACCESS_KEY_ID` | env | Yes | Your AWS access key |
-| `AWS_SECRET_ACCESS_KEY` | env | Yes | Your AWS secret key |
-| `AWS_DEFAULT_REGION` | env | No | `us-east-1` |
+> AWS credentials are handled automatically via OIDC — no static keys needed.
 
 > All other variables have sensible defaults. See `terraform.tfvars.example` for the full list.
 
@@ -210,8 +204,8 @@ chmod +x scripts/validate.sh
 |----------|------|-----------|-------------|
 | `rds_password` | terraform | Yes | PostgreSQL password for SonarQube |
 | `jenkins_admin_password` | terraform | Yes | Jenkins admin password |
-| `AWS_ACCESS_KEY_ID` | env | Yes | AWS credentials |
-| `AWS_SECRET_ACCESS_KEY` | env | Yes | AWS credentials |
+
+> AWS credentials are injected automatically via OIDC — no static credential variables required.
 
 ### Optional (set after first deploy)
 

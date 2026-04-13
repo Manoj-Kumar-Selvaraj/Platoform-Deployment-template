@@ -37,15 +37,13 @@ Run `scripts/preflight.sh` to verify prerequisites.
 
 1. Create workspace `platform-mvp-dev` in your TFC organization
 2. Update `REPLACE_WITH_YOUR_TFC_ORG` in `terraform/environments/dev/versions.tf`
-3. Set the following variables in TFC:
+3. AWS credentials are handled automatically via OIDC — no static keys needed
+4. Set the following variables in TFC:
 
 | Variable | Type | Sensitive | Value |
 |----------|------|-----------|-------|
 | `rds_password` | Terraform | Yes | Strong password for RDS |
 | `jenkins_admin_password` | Terraform | Yes | Jenkins admin password |
-| `AWS_ACCESS_KEY_ID` | Environment | No | Your AWS access key |
-| `AWS_SECRET_ACCESS_KEY` | Environment | Yes | Your AWS secret key |
-| `AWS_DEFAULT_REGION` | Environment | No | `us-east-1` |
 
 ### 2. Apply
 
