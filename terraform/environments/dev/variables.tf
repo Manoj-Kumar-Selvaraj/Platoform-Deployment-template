@@ -184,7 +184,7 @@ variable "rds_password" {
 variable "rds_deletion_protection" {
   description = "Enable deletion protection for RDS"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "rds_backup_retention_period" {

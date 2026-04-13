@@ -436,7 +436,169 @@ resource "helm_release" "sonarqube" {
 }
 
 # ================================================================
-# 5. JENKINS
+# 5. JFROG ARTIFACTORY OSS
+# ================================================================
+
+resource "kubernetes_namespace" "artifactory" {
+  metadata {
+    name = "artifactory"
+    labels = {
+      "app.kubernetes.io/part-of" = var.project_name
+    }
+  }
+  depends_on = [time_sleep.wait_for_nodes]
+}
+
+resource "helm_release" "artifactory_oss" {
+  name       = "artifactory-oss"
+  repository = "https://charts.jfrog.io"
+  chart      = "artifactory-oss"
+  namespace  = kubernetes_namespace.artifactory.metadata[0].name
+  version    = "107.90.8"
+  timeout    = 900
+  wait       = false
+
+  # Disable bundled PostgreSQL — use embedded Derby for OSS (stateless enough)
+  set {
+    name  = "postgresql.enabled"
+    value = "false"
+  }
+
+  set {
+    name  = "artifactory.persistence.enabled"
+    value = "true"
+  }
+
+  set {
+    name  = "artifactory.persistence.storageClassName"
+    value = "efs-sc"
+  }
+
+  set {
+    name  = "artifactory.persistence.accessMode"
+    value = "ReadWriteMany"
+  }
+
+  set {
+    name  = "artifactory.persistence.size"
+    value = "50Gi"
+  }
+
+  # Ingress — ALB (shared group)
+  set {
+    name  = "artifactory.ingress.enabled"
+    value = "true"
+  }
+
+  set {
+    name  = "artifactory.ingress.annotations.kubernetes\\.io/ingress\\.class"
+    value = "alb"
+  }
+
+  set {
+    name  = "artifactory.ingress.annotations.alb\\.ingress\\.kubernetes\\.io/scheme"
+    value = "internet-facing"
+  }
+
+  set {
+    name  = "artifactory.ingress.annotations.alb\\.ingress\\.kubernetes\\.io/target-type"
+    value = "ip"
+  }
+
+  set {
+    name  = "artifactory.ingress.annotations.alb\\.ingress\\.kubernetes\\.io/certificate-arn"
+    value = module.route53_acm.certificate_arn
+  }
+
+  set {
+    name  = "artifactory.ingress.annotations.alb\\.ingress\\.kubernetes\\.io/listen-ports"
+    value = "[{\"HTTPS\": 443}]"
+  }
+
+  set {
+    name  = "artifactory.ingress.annotations.alb\\.ingress\\.kubernetes\\.io/ssl-redirect"
+    value = "443"
+    type  = "string"
+  }
+
+  set {
+    name  = "artifactory.ingress.annotations.alb\\.ingress\\.kubernetes\\.io/group\\.name"
+    value = "platform-ingress"
+  }
+
+  set {
+    name  = "artifactory.ingress.annotations.alb\\.ingress\\.kubernetes\\.io/healthcheck-path"
+    value = "/artifactory/api/system/ping"
+  }
+
+  set {
+    name  = "artifactory.ingress.annotations.external-dns\\.alpha\\.kubernetes\\.io/hostname"
+    value = "artifactory.${var.domain_name}"
+  }
+
+  set {
+    name  = "artifactory.ingress.hosts[0]"
+    value = "artifactory.${var.domain_name}"
+  }
+
+  set {
+    name  = "artifactory.ingress.path"
+    value = "/*"
+  }
+
+  # Scheduling — platform-control nodes
+  set {
+    name  = "artifactory.nodeSelector.role"
+    value = "platform-control"
+  }
+
+  set {
+    name  = "artifactory.tolerations[0].key"
+    value = "platform-control"
+  }
+
+  set {
+    name  = "artifactory.tolerations[0].value"
+    value = "true"
+    type  = "string"
+  }
+
+  set {
+    name  = "artifactory.tolerations[0].effect"
+    value = "NoSchedule"
+  }
+
+  # Resources
+  set {
+    name  = "artifactory.resources.requests.cpu"
+    value = "500m"
+  }
+
+  set {
+    name  = "artifactory.resources.requests.memory"
+    value = "2Gi"
+  }
+
+  set {
+    name  = "artifactory.resources.limits.cpu"
+    value = "2"
+  }
+
+  set {
+    name  = "artifactory.resources.limits.memory"
+    value = "4Gi"
+  }
+
+  depends_on = [
+    helm_release.aws_lb_controller,
+    helm_release.external_dns,
+    helm_release.efs_csi_driver,
+    kubernetes_storage_class.efs,
+  ]
+}
+
+# ================================================================
+# 6. JENKINS
 # ================================================================
 
 # --- Jenkins Kubernetes secrets ---
@@ -818,11 +980,12 @@ resource "helm_release" "jenkins" {
     helm_release.efs_csi_driver,
     kubernetes_storage_class.efs,
     helm_release.sonarqube,
+    helm_release.artifactory_oss,
   ]
 }
 
 # ================================================================
-# 6. SAMPLE APP (initial deploy)
+# 7. SAMPLE APP (initial deploy)
 # ================================================================
 
 # Build the sample-app image outside Terraform (CI/CD pipeline).
