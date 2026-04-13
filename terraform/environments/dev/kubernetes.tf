@@ -369,6 +369,11 @@ resource "helm_release" "sonarqube" {
     value = "sonar.${var.domain_name}"
   }
 
+  set {
+    name  = "ingress.hosts[0].path"
+    value = "/*"
+  }
+
   # Scheduling
   set {
     name  = "nodeSelector.role"
