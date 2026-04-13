@@ -346,6 +346,7 @@ resource "helm_release" "sonarqube" {
   set {
     name  = "ingress.annotations.alb\\.ingress\\.kubernetes\\.io/ssl-redirect"
     value = "443"
+    type  = "string"
   }
 
   set {
@@ -688,6 +689,7 @@ resource "helm_release" "jenkins" {
   set {
     name  = "controller.ingress.annotations.alb\\.ingress\\.kubernetes\\.io/ssl-redirect"
     value = "443"
+    type  = "string"
   }
 
   set {
