@@ -6,4 +6,6 @@ class Constants {
     static final String JENKINS_URL = "https://jenkins.${DOMAIN}"
     static final String SONAR_URL = "https://sonar.${DOMAIN}"
     static final String DEFAULT_NAMESPACE = 'apps'
+    static final String TEST_NAMESPACE = 'test'
+    static final String TEST_HOST = "test-app.${DOMAIN}"
 }

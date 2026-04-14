@@ -59,6 +59,17 @@ resource "kubernetes_namespace" "apps" {
   depends_on = [time_sleep.wait_for_nodes]
 }
 
+resource "kubernetes_namespace" "test" {
+  metadata {
+    name = "test"
+    labels = {
+      "app.kubernetes.io/part-of" = var.project_name
+      "environment"               = "test"
+    }
+  }
+  depends_on = [time_sleep.wait_for_nodes]
+}
+
 # ================================================================
 # VELERO — Kubernetes-level backup to S3 (cross-region replicated)
 # Gated on var.enable_velero — enable after S3 CRR is set up
