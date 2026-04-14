@@ -10,13 +10,16 @@ pipeline {
     }
 
     environment {
-        APP_NAME    = 'sample-app'
-        SRC_DIR     = 'kubernetes/apps/sample-app/src'
-        CHART_PATH  = 'kubernetes/apps/sample-app/chart'
-        DEPLOY_NS   = 'test'
-        IMAGE_TAG   = "${BUILD_NUMBER}"
-        DOMAIN      = Constants.DOMAIN
-        TEST_HOST   = "test-app.${Constants.DOMAIN}"
+        APP_NAME         = 'sample-app'
+        SRC_DIR          = 'kubernetes/apps/sample-app/src'
+        CHART_PATH       = 'kubernetes/apps/sample-app/chart'
+        DEPLOY_NS        = 'test'
+        IMAGE_TAG        = "${BUILD_NUMBER}"
+        DOMAIN           = Constants.DOMAIN
+        TEST_HOST        = "test-app.${Constants.DOMAIN}"
+        ARTIFACTORY_URL  = "https://artifactory.${Constants.DOMAIN}"
+        NPM_REPO         = 'npm'        // Artifactory virtual npm repo name
+        GENERIC_REPO     = 'generic-local'
     }
 
     options {
@@ -36,8 +39,43 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 container('jnlp') {
+                    withCredentials([usernamePassword(
+                        credentialsId: 'artifactory-credentials',
+                        usernameVariable: 'ARTIFACTORY_USER',
+                        passwordVariable: 'ARTIFACTORY_PASS'
+                    )]) {
+                        dir(env.SRC_DIR) {
+                            sh """
+                                # Configure npm to use Artifactory as proxy registry
+                                NPM_REGISTRY=${env.ARTIFACTORY_URL}/artifactory/api/npm/${env.NPM_REPO}/
+                                AUTH=\$(echo -n "\${ARTIFACTORY_USER}:\${ARTIFACTORY_PASS}" | base64)
+                                npm config set registry \${NPM_REGISTRY}
+                                npm config set //\$(echo \${NPM_REGISTRY} | sed 's|https://||'):_auth \${AUTH}
+                                npm ci
+                            """
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Publish Artifact to Artifactory') {
+            steps {
+                container('jnlp') {
                     dir(env.SRC_DIR) {
-                        sh 'npm ci'
+                        sh 'npm pack'
+                        script {
+                            def tarball = sh(
+                                script: 'ls *.tgz | head -1',
+                                returnStdout: true
+                            ).trim()
+                            artifactoryPublish(
+                                filePath:      "${env.SRC_DIR}/${tarball}",
+                                targetRepo:    env.GENERIC_REPO,
+                                artifactPath:  "${env.APP_NAME}/${env.IMAGE_TAG}/${tarball}",
+                                artifactoryUrl: env.ARTIFACTORY_URL
+                            )
+                        }
                     }
                 }
             }
@@ -126,3 +164,4 @@ pipeline {
         }
     }
 }
+

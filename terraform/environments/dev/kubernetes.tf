@@ -726,7 +726,7 @@ resource "helm_release" "artifactory_oss" {
   }
 
   set {
-    name  = "artifactory.persistence.storageClassName"
+    name  = "artifactory.persistence.storageClass"
     value = "efs-sc"
   }
 
@@ -878,6 +878,18 @@ resource "kubernetes_secret" "jenkins_sonarqube" {
 
   data = {
     sonarqube-token = var.sonarqube_token
+  }
+}
+
+resource "kubernetes_secret" "jenkins_artifactory" {
+  metadata {
+    name      = "jenkins-artifactory-credentials"
+    namespace = kubernetes_namespace.jenkins.metadata[0].name
+  }
+
+  data = {
+    artifactory-username = "admin"
+    artifactory-password = var.artifactory_admin_password
   }
 }
 
@@ -1047,14 +1059,25 @@ resource "helm_release" "jenkins" {
       credentials = {
         system = {
           domainCredentials = [{
-            credentials = [{
-              string = {
-                scope       = "GLOBAL"
-                id          = "sonarqube-token"
-                secret      = "$${sonarqube-token}"
-                description = "SonarQube authentication token"
+            credentials = [
+              {
+                string = {
+                  scope       = "GLOBAL"
+                  id          = "sonarqube-token"
+                  secret      = "$${sonarqube-token}"
+                  description = "SonarQube authentication token"
+                }
+              },
+              {
+                usernamePassword = {
+                  scope       = "GLOBAL"
+                  id          = "artifactory-credentials"
+                  username    = "$${artifactory-username}"
+                  password    = "$${artifactory-password}"
+                  description = "Artifactory admin credentials for npm proxy and artifact publish"
+                }
               }
-            }]
+            ]
           }]
         }
       }
@@ -1070,6 +1093,26 @@ resource "helm_release" "jenkins" {
   set {
     name  = "controller.additionalExistingSecrets[0].keyName"
     value = "sonarqube-token"
+  }
+
+  set {
+    name  = "controller.additionalExistingSecrets[1].name"
+    value = kubernetes_secret.jenkins_artifactory.metadata[0].name
+  }
+
+  set {
+    name  = "controller.additionalExistingSecrets[1].keyName"
+    value = "artifactory-username"
+  }
+
+  set {
+    name  = "controller.additionalExistingSecrets[2].name"
+    value = kubernetes_secret.jenkins_artifactory.metadata[0].name
+  }
+
+  set {
+    name  = "controller.additionalExistingSecrets[2].keyName"
+    value = "artifactory-password"
   }
 
   # Ingress — ALB

@@ -183,10 +183,6 @@ resource "aws_backup_vault" "dr" {
   provider = aws.dr
   name     = "${var.project_name}-backup-vault-dr"
   tags     = local.common_tags
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 # DR S3 Bucket (replication destination for backup bucket)

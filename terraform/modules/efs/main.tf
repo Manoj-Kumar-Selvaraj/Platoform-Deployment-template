@@ -11,10 +11,6 @@ resource "aws_efs_file_system" "main" {
   tags = merge(var.tags, {
     Name = "${var.project_name}-efs"
   })
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 # -----------------------------------------------------

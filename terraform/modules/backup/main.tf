@@ -4,10 +4,6 @@
 resource "aws_backup_vault" "main" {
   name = "${var.project_name}-backup-vault"
   tags = var.tags
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 # -----------------------------------------------------

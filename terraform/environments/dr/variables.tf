@@ -269,6 +269,16 @@ variable "sonarqube_token" {
 }
 
 # -----------------------------------------------------
+# Artifactory Integration
+# -----------------------------------------------------
+variable "artifactory_admin_password" {
+  description = "Artifactory admin password for Jenkins CI integration (npm proxy + artifact publish). Set after Artifactory is up."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+# -----------------------------------------------------
 # Sample App
 # -----------------------------------------------------
 variable "deploy_sample_app" {
