@@ -314,7 +314,7 @@ variable "enable_dr_restore" {
 }
 
 variable "dr_rds_backup_arn" {
-  description = "Override: ARN of a specific replicated RDS backup to restore from. Leave empty (default) to auto-discover the latest replicated backup in this region."
+  description = "ARN of the replicated RDS automated backup to restore from. Required when enable_dr_restore = true. Get via: aws rds describe-db-instance-automated-backups --region us-west-2 --query 'AutomatedBackups[?DBInstanceIdentifier==`platform-mvp-sonarqube`].DBInstanceAutomatedBackupsArn'"
   type        = string
   default     = ""
 }

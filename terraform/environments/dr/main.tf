@@ -165,29 +165,9 @@ module "ansible_runner" {
 # ==============================================
 # DR Restore — RDS Point-in-Time Recovery
 # Gated on var.enable_dr_restore = true
+# Cross-region restore: requires replicated backup ARN (var.dr_rds_backup_arn)
+# Run: aws rds describe-db-instance-automated-backups --region us-west-2 --query 'AutomatedBackups[?DBInstanceIdentifier==`platform-mvp-sonarqube`].DBInstanceAutomatedBackupsArn'
 # ==============================================
-
-# Auto-discover the latest replicated backup in this region
-data "aws_db_instance_automated_backups" "replicated" {
-  count = var.enable_dr_restore ? 1 : 0
-
-  db_instance_identifier = "${var.project_name}-sonarqube"
-
-  filter {
-    name   = "status"
-    values = ["replicating", "retained"]
-  }
-}
-
-locals {
-  # Use explicit override if provided, otherwise pick the latest replicated backup
-  dr_rds_backup_arn = (
-    var.dr_rds_backup_arn != ""
-    ? var.dr_rds_backup_arn
-    : try(data.aws_db_instance_automated_backups.replicated[0].instance_automated_backups_arns[0], "")
-  )
-}
-
 resource "aws_db_instance" "dr_restored" {
   count = var.enable_dr_restore ? 1 : 0
 
@@ -195,7 +175,7 @@ resource "aws_db_instance" "dr_restored" {
   instance_class = var.rds_instance_class
 
   restore_to_point_in_time {
-    source_db_instance_automated_backups_arn = local.dr_rds_backup_arn
+    source_db_instance_automated_backups_arn = var.dr_rds_backup_arn
     use_latest_restorable_time               = true
   }
 
@@ -221,7 +201,7 @@ resource "aws_db_instance" "dr_restored" {
   }
 
   precondition {
-    condition     = local.dr_rds_backup_arn != ""
-    error_message = "No replicated backup found and dr_rds_backup_arn not set. Ensure backup replication from primary region is active."
+    condition     = var.dr_rds_backup_arn != ""
+    error_message = "dr_rds_backup_arn must be set when enable_dr_restore is true. Run: aws rds describe-db-instance-automated-backups --region us-west-2"
   }
 }
