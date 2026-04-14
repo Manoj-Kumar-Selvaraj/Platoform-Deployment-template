@@ -304,6 +304,21 @@ variable "enable_velero" {
   default     = true
 }
 
+# -----------------------------------------------------
+# DR Restore (flag-driven automated recovery)
+# -----------------------------------------------------
+variable "enable_dr_restore" {
+  description = "Enable DR restore mode: provisions a restored RDS instance from a replicated backup ARN and runs a Velero restore job. Set true + dr_rds_backup_arn during DR recovery, then false to tear down."
+  type        = bool
+  default     = false
+}
+
+variable "dr_rds_backup_arn" {
+  description = "Override: ARN of a specific replicated RDS backup to restore from. Leave empty (default) to auto-discover the latest replicated backup in this region."
+  type        = string
+  default     = ""
+}
+
 # ==============================================
 # Ad-hoc Backup
 # ==============================================

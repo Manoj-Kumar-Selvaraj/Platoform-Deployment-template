@@ -35,6 +35,11 @@ output "rds_endpoint" {
   value       = module.rds_postgres.endpoint
 }
 
+output "dr_restored_rds_endpoint" {
+  description = "DR-restored RDS endpoint (only available when enable_dr_restore = true)"
+  value       = var.enable_dr_restore && length(aws_db_instance.dr_restored) > 0 ? aws_db_instance.dr_restored[0].endpoint : ""
+}
+
 output "acm_certificate_arn" {
   description = "ACM certificate ARN"
   value       = module.route53_acm.certificate_arn
@@ -58,38 +63,31 @@ output "sonarqube_url" {
 output "dr_recovery_steps" {
   description = "DR recovery instructions"
   value       = <<-EOT
-    DR Recovery Steps:
+    DR Recovery Steps (Automated):
 
-    1. Configure kubectl:
-       ${format("aws eks update-kubeconfig --name %s --region %s", module.eks.cluster_name, var.aws_region)}
-
-    2. Restore RDS from replicated backups:
+    1. Get the replicated backup ARN:
        aws rds describe-db-instance-automated-backups \
          --region ${var.aws_region} \
-         --query 'DBInstanceAutomatedBackups[?DBInstanceIdentifier==`platform-mvp-sonarqube`].DBInstanceAutomatedBackupsArn'
+         --query 'DBInstanceAutomatedBackups[].DBInstanceAutomatedBackupsArn' --output text
 
-       aws rds restore-db-instance-to-point-in-time \
-         --region ${var.aws_region} \
-         --source-db-instance-automated-backups-arn <ARN> \
-         --target-db-instance-identifier platform-mvp-sonarqube-restored
+    2. Set TFC variables:
+       enable_dr_restore = true
+       dr_rds_backup_arn = "<ARN from step 1>"
 
-    3. Set TFC variable: rds_endpoint_override = <restored endpoint>
-       Re-apply: terraform apply -target=helm_release.sonarqube
+    3. Apply — RDS restores + Velero restore job runs automatically:
+       terraform apply
 
-    4. Velero restore (reads from replicated S3 bucket):
-       velero backup-location create dr-replica \
-         --provider aws \
-         --bucket ${module.s3_backup.bucket_name} \
-         --prefix velero \
-         --config region=${var.aws_region}
-
-       velero restore create dr-restore \
-         --from-backup daily-platform-backup-<LATEST> \
-         --storage-location dr-replica \
-         --include-namespaces jenkins,sonarqube,artifactory
-
-    5. Verify:
-       curl https://jenkins.${var.domain_name}/login
+    4. Verify:
        curl https://sonar.${var.domain_name}/api/system/status
+       curl https://jenkins.${var.domain_name}/login
+       kubectl get jobs -n velero
+
+    5. After verification, clean up restored resources:
+       enable_dr_restore = false
+       dr_rds_backup_arn = ""
+       terraform apply
+
+    Manual override (legacy):
+       Set rds_endpoint_override to a manually restored RDS address.
   EOT
 }

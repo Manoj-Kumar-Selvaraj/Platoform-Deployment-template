@@ -8,6 +8,20 @@
 #   - All other resources: identical to dev
 # ================================================================
 
+# ================================================================
+# LOCALS — DR restore RDS address resolution
+# ================================================================
+locals {
+  # Three-tier priority: DR restored instance > manual override > module default
+  sonarqube_rds_address = (
+    var.enable_dr_restore && length(aws_db_instance.dr_restored) > 0
+    ? aws_db_instance.dr_restored[0].address
+    : var.rds_endpoint_override != ""
+    ? var.rds_endpoint_override
+    : module.rds_postgres.address
+  )
+}
+
 # Ensure node groups are ready before deploying anything to K8s.
 # The time_sleep gives nodes ~60s to register after Terraform
 # reports node groups as created.
@@ -203,6 +217,82 @@ resource "helm_release" "velero" {
     helm_release.efs_csi_driver,
     module.s3_backup,
   ]
+}
+
+# ================================================================
+# VELERO DR RESTORE JOB — Triggered by enable_dr_restore = true
+# Runs a one-shot Kubernetes Job that restores from the latest
+# Velero schedule backup. Requires Velero to be deployed first.
+# ================================================================
+resource "kubernetes_job_v1" "velero_dr_restore" {
+  count = (var.enable_dr_restore && var.enable_velero) ? 1 : 0
+
+  metadata {
+    name      = "velero-dr-restore"
+    namespace = kubernetes_namespace.velero[0].metadata[0].name
+  }
+
+  spec {
+    ttl_seconds_after_finished = 3600
+    backoff_limit              = 2
+
+    template {
+      metadata {
+        labels = {
+          app = "velero-dr-restore"
+        }
+      }
+
+      spec {
+        service_account_name = "velero-server"
+        restart_policy       = "OnFailure"
+
+        node_selector = {
+          role = "platform-control"
+        }
+
+        toleration {
+          key    = "platform-control"
+          value  = "true"
+          effect = "NoSchedule"
+        }
+
+        container {
+          name    = "velero-restore"
+          image   = "velero/velero:v1.14.0"
+          command = ["/bin/sh", "-c"]
+          args = [
+            <<-EOT
+            echo "Waiting for Velero BSL to become available..."
+            for i in $(seq 1 60); do
+              if velero backup-location get default 2>/dev/null | grep -q Available; then
+                echo "BSL is available"
+                break
+              fi
+              echo "Attempt $i/60 — BSL not ready, waiting 30s..."
+              sleep 30
+            done
+
+            echo "Creating restore from latest schedule backup..."
+            velero restore create dr-restore \
+              --from-schedule daily-platform-backup \
+              --wait \
+              --timeout 30m
+
+            echo "Restore complete. Status:"
+            velero restore describe dr-restore
+            EOT
+          ]
+        }
+      }
+    }
+  }
+
+  lifecycle {
+    ignore_changes = all
+  }
+
+  depends_on = [helm_release.velero]
 }
 
 # ================================================================
@@ -454,7 +544,7 @@ resource "helm_release" "sonarqube" {
 
   set {
     name  = "jdbcOverwrite.jdbcUrl"
-    value = var.rds_endpoint_override != "" ? "jdbc:postgresql://${var.rds_endpoint_override}:5432/${var.rds_db_name}" : "jdbc:postgresql://${module.rds_postgres.address}:5432/${var.rds_db_name}"
+    value = "jdbc:postgresql://${local.sonarqube_rds_address}:5432/${var.rds_db_name}"
   }
 
   set {

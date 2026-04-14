@@ -55,6 +55,11 @@ output "rds_endpoint" {
   value       = module.rds_postgres.endpoint
 }
 
+output "dr_restored_rds_endpoint" {
+  description = "DR-restored RDS endpoint (only available when enable_dr_restore = true)"
+  value       = var.enable_dr_restore && length(aws_db_instance.dr_restored) > 0 ? aws_db_instance.dr_restored[0].endpoint : ""
+}
+
 # ==============================================
 # Route53 / ACM
 # ==============================================

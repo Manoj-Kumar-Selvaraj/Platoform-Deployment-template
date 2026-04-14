@@ -267,3 +267,67 @@ resource "aws_db_instance_automated_backups_replication" "sonarqube_dr" {
   source_db_instance_arn = module.rds_postgres.db_instance_arn
   retention_period       = 7
 }
+
+# ==============================================
+# DR Restore — RDS Point-in-Time Recovery
+# Gated on var.enable_dr_restore = true
+# ==============================================
+
+# Auto-discover the latest automated backup for the primary RDS instance
+data "aws_db_instance_automated_backups" "primary" {
+  count = var.enable_dr_restore ? 1 : 0
+
+  db_instance_identifier = "${var.project_name}-sonarqube"
+
+  filter {
+    name   = "status"
+    values = ["active", "retained"]
+  }
+}
+
+locals {
+  # Use explicit override if provided, otherwise pick the latest automated backup
+  dr_rds_backup_arn = (
+    var.dr_rds_backup_arn != ""
+    ? var.dr_rds_backup_arn
+    : try(data.aws_db_instance_automated_backups.primary[0].instance_automated_backups_arns[0], "")
+  )
+}
+
+resource "aws_db_instance" "dr_restored" {
+  count = var.enable_dr_restore ? 1 : 0
+
+  identifier     = "${var.project_name}-sonarqube-restored"
+  instance_class = var.rds_instance_class
+
+  restore_to_point_in_time {
+    source_db_instance_automated_backups_arn = local.dr_rds_backup_arn
+    use_latest_restorable_time               = true
+  }
+
+  db_subnet_group_name   = module.rds_postgres.db_subnet_group_name
+  parameter_group_name   = module.rds_postgres.parameter_group_name
+  vpc_security_group_ids = [module.rds_postgres.security_group_id]
+
+  publicly_accessible = false
+  multi_az            = false
+  storage_encrypted   = true
+
+  # Easy teardown when flag is cleared
+  deletion_protection = false
+  skip_final_snapshot = true
+
+  tags = merge(local.common_tags, {
+    Name = "${var.project_name}-sonarqube-restored"
+    Role = "dr-restore"
+  })
+
+  lifecycle {
+    ignore_changes = [restore_to_point_in_time]
+  }
+
+  precondition {
+    condition     = local.dr_rds_backup_arn != ""
+    error_message = "No automated backup found and dr_rds_backup_arn not set. Ensure RDS automated backups are enabled."
+  }
+}
